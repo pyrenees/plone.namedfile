@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
-from DateTime import DateTime
-from OFS.SimpleItem import SimpleItem
-from plone.app.testing import TEST_USER_NAME
-from plone.app.testing import TEST_USER_PASSWORD
+from datetime import datetime
+from dateutil.tz import tzutc
+from persistent import Persistent
 from plone.namedfile.field import NamedImage as NamedImageField
 from plone.namedfile.file import NamedImage
 from plone.namedfile.interfaces import IImageScaleTraversable
 from plone.namedfile.scaling import ImageScaling
 from plone.namedfile.testing import PLONE_NAMEDFILE_FUNCTIONAL_TESTING
-from plone.testing.z2 import Browser
-from StringIO import StringIO
+from io import BytesIO
 from zope.annotation import IAttributeAnnotatable
 from zope.interface import implementer
 
@@ -18,6 +16,13 @@ import PIL
 import time
 import transaction
 import unittest
+
+_utc = tzutc()
+
+
+def utcnow():
+    """Construct a UTC datetime from time.time()."""
+    datetime.fromtimestamp(datetime.utcnow().timestamp(), tz=_utc)
 
 
 def getFile(filename):
@@ -37,15 +42,15 @@ class IHasImage(IImageScaleTraversable):
 
 
 def assertImage(testcase, data, format_, size):
-    image = PIL.Image.open(StringIO(data))
+    image = PIL.Image.open(BytesIO(data))
     testcase.assertEqual(image.format, format_)
     testcase.assertEqual(image.size, size)
 
 
 @implementer(IAttributeAnnotatable, IHasImage)
-class DummyContent(SimpleItem):
+class DummyContent(Persistent):
     image = None
-    modified = DateTime
+    modified = utcnow()
     id = __name__ = 'item'
     title = 'foo'
 
@@ -61,14 +66,9 @@ class ImagePublisherTests(unittest.TestCase):
         data = getFile('image.gif').read()
         item = DummyContent()
         item.image = NamedImage(data, 'image/gif', u'image.gif')
-        self.layer['app']._setOb('item', item)
-        self.item = self.layer['app'].item
-        self.view = self.item.unrestrictedTraverse('@@images')
+        self.item = item
+        self.view = ImageScaling(self.item, None)
         self._orig_sizes = ImageScaling._sizes
-
-        self.browser = Browser(self.layer['app'])
-        self.browser.handleErrors = False
-        self.browser.addHeader('Referer', self.layer['app'].absolute_url())
 
     def tearDown(self):
         ImageScaling._sizes = self._orig_sizes
@@ -109,11 +109,11 @@ class ImagePublisherTests(unittest.TestCase):
         self.browser = Browser(self.layer['app'])
         self.browser.handleErrors = False
         self.browser.addHeader('Referer', self.layer['app'].absolute_url())
-        from urllib2 import Request
+        from urllib.request import Request
 
         class HeadRequest(Request):
             def get_method(self):
-                return "HEAD"
+                return 'HEAD'
 
         head_request = HeadRequest(scale.url)
         mbrowser = self.browser.mech_browser

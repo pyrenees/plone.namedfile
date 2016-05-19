@@ -1,15 +1,15 @@
 <configure xmlns="http://namespaces.zope.org/zope">
 
   <utility
-      name="__builtin__.str"
+      name="builtins.bytes"
       provides=".interfaces.IStorage"
-      factory=".storages.StringStorable"
+      factory=".storages.BytesStorable"
       />
 
   <utility
-      name="__builtin__.unicode"
+      name="builtins.str"
       provides=".interfaces.IStorage"
-      factory=".storages.UnicodeStorable"
+      factory=".storages.StringStorable"
       />
 
   <utility

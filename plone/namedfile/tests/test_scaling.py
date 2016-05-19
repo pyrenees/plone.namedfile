@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from DateTime import DateTime
-from OFS.SimpleItem import SimpleItem
+from datetime import datetime
+from io import StringIO
+from persistent import Persistent
 from plone.namedfile.field import NamedImage as NamedImageField
 from plone.namedfile.file import NamedImage
 from plone.namedfile.interfaces import IAvailableSizes
@@ -9,12 +10,11 @@ from plone.namedfile.scaling import ImageScaling
 from plone.namedfile.testing import PLONE_NAMEDFILE_FUNCTIONAL_TESTING
 from plone.namedfile.testing import PLONE_NAMEDFILE_INTEGRATION_TESTING
 from plone.scale.interfaces import IScaledImageQuality
-from StringIO import StringIO
-from zExceptions import Unauthorized
 from zope.annotation import IAttributeAnnotatable
 from zope.component import getGlobalSiteManager
 from zope.component import getSiteManager
 from zope.interface import implementer
+from zope.traversing.browser.interfaces import IAbsoluteURL
 
 import os
 import PIL
@@ -46,9 +46,9 @@ def assertImage(testcase, data, format_, size):
 
 
 @implementer(IAttributeAnnotatable, IHasImage)
-class DummyContent(SimpleItem):
+class DummyContent(Persistent):
     image = None
-    modified = DateTime
+    modified = datetime.now()
     id = __name__ = 'item'
     title = 'foo'
 
@@ -104,9 +104,11 @@ class ImageScalingTests(unittest.TestCase):
         self.assertEqual(foo.url, foo.absolute_url())
 
         tag = foo.tag()
-        base = self.item.absolute_url()
-        expected = r'<img src="%s/@@images/([-0-9a-f]{36}).(jpeg|gif|png)" ' \
-            r'alt="foo" title="foo" height="(\d+)" width="(\d+)" />' % base
+        base = IAbsoluteURL(self.item, '')
+        expected = (
+            r'<img src="{0:s}/@@images/([-0-9a-f]{{36}}).(jpeg|gif|png)" '
+            r'alt="foo" title="foo" height="(\d+)" width="(\d+)" />'.format(
+                base))
         groups = re.match(expected, tag).groups()
         self.assertTrue(groups, tag)
 
@@ -123,7 +125,7 @@ class ImageScalingTests(unittest.TestCase):
         data = getFile('image.jpg').read()
         self.item.image = NamedImage(data, 'image/jpeg', u'image.jpg')
         foo2 = self.scaling.scale('image', scale='foo')
-        self.failIf(foo1.data == foo2.data, 'scale not updated?')
+        self.assertFalse(foo1.data == foo2.data, 'scale not updated?')
 
     def testCustomSizeChange(self):
         # set custom image sizes & view a scale
@@ -155,13 +157,6 @@ class ImageScalingTests(unittest.TestCase):
         self.scaling.available_sizes = {'qux': (12, 12)}
         self.assertEqual(self.scaling.available_sizes, {'qux': (12, 12)})
 
-    def testGuardedAccess(self):
-        # make sure it's not possible to access scales of forbidden images
-        self.item.__allow_access_to_unprotected_subobjects__ = 0
-        self.assertRaises(Unauthorized,
-                          self.scaling.guarded_orig_image, 'image')
-        self.item.__allow_access_to_unprotected_subobjects__ = 1
-
     def testGetAvailableSizes(self):
         self.scaling.available_sizes = {'foo': (60, 60)}
         assert self.scaling.getAvailableSizes('image') == {'foo': (60, 60)}
@@ -171,25 +166,31 @@ class ImageScalingTests(unittest.TestCase):
 
     def testGetOriginalScaleTag(self):
         tag = self.scaling.tag('image')
-        base = self.item.absolute_url()
-        expected = r'<img src="%s/@@images/([-0-9a-f]{36}).(jpeg|gif|png)" ' \
-            r'alt="foo" title="foo" height="(\d+)" width="(\d+)" />' % base
+        base = IAbsoluteURL(self.item, '')
+        expected = (
+            r'<img src="{0:s}/@@images/([-0-9a-f]{{36}}).(jpeg|gif|png)" '
+            r'alt="foo" title="foo" height="(\d+)" width="(\d+)" />'.format(
+                base))
         self.assertTrue(re.match(expected, tag).groups())
 
     def testScaleOnItemWithNonASCIITitle(self):
         self.item.title = '\xc3\xbc'
         tag = self.scaling.tag('image')
-        base = self.item.absolute_url()
-        expected = r'<img src="%s/@@images/([-0-9a-f]{36}).(jpeg|gif|png)" ' \
-            r'alt="\xfc" title="\xfc" height="(\d+)" width="(\d+)" />' % base
+        base = IAbsoluteURL(self.item, '')
+        expected = (
+            r'<img src="{0:s}/@@images/([-0-9a-f]{{36}}).(jpeg|gif|png)" '
+            r'alt="\xfc" title="\xfc" height="(\d+)" width="(\d+)" />'.format(
+                base))
         self.assertTrue(re.match(expected, tag).groups())
 
     def testScaleOnItemWithUnicodeTitle(self):
-        self.item.Title = lambda: '\xc3\xbc'.decode('utf8')
+        self.item.Title = lambda: b'\xc3\xbc'.decode('utf8')
         tag = self.scaling.tag('image')
-        base = self.item.absolute_url()
-        expected = r'<img src="%s/@@images/([-0-9a-f]{36}).(jpeg|gif|png)" ' \
-            r'alt="\xfc" title="\xfc" height="(\d+)" width="(\d+)" />' % base
+        base = IAbsoluteURL(self.item, '')
+        expected = (
+            r'<img src="{0:s}/@@images/([-0-9a-f]{{36}}).(jpeg|gif|png)" '
+            r'alt="\xfc" title="\xfc" height="(\d+)" width="(\d+)" />'.format(
+                base))
         self.assertTrue(re.match(expected, tag).groups())
 
     def testScaledImageQuality(self):
@@ -232,8 +233,10 @@ class ImageTraverseTests(unittest.TestCase):
         scale = stack.pop(0)
         tag = static_traverser.traverse(scale, stack)
         base = self.item.absolute_url()
-        expected = r'<img src="%s/@@images/([-0-9a-f]{36}).(jpeg|gif|png)" ' \
-            r'alt="foo" title="foo" height="(\d+)" width="(\d+)" />' % base
+        expected = (
+            r'<img src="{0:s}/@@images/([-0-9a-f]{{36}}).(jpeg|gif|png)" '
+            r'alt="foo" title="foo" height="(\d+)" width="(\d+)" />'.format(
+                base))
         groups = re.match(expected, tag).groups()
         self.assertTrue(groups, tag)
         uid, ext, height, width = groups
@@ -281,13 +284,6 @@ class ImageTraverseTests(unittest.TestCase):
         self.assertEqual(width, 42)
         self.assertEqual(height, 42)
         self.assertNotEqual(uid1, uid2, 'scale not updated?')
-
-    def testGuardedAccess(self):
-        # make sure it's not possible to access scales of forbidden images
-        self.item.__allow_access_to_unprotected_subobjects__ = 0
-        ImageScaling._sizes = {'foo': (42, 42)}
-        self.assertRaises(Unauthorized, self.traverse, 'image/foo')
-        self.item.__allow_access_to_unprotected_subobjects__ = 1
 
 
 def test_suite():

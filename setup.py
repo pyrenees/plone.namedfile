@@ -2,6 +2,7 @@
 from setuptools import find_packages
 from setuptools import setup
 import os
+import sys
 
 
 version = '4.0.0.dev0'
@@ -37,11 +38,13 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'plone.rfc822>=1.0b2',
-        'plone.scale[storage] >=1.4.999',
-        'plone.schemaeditor',
+        'persistent',
+        'plone.rfc822',
+        'plone.scale',
         'plone.supermodel',
+        'python-dateutil',
         'setuptools',
+        'zope.annotation',
         'zope.browserpage',
         'zope.component',
         'zope.copy',
@@ -52,13 +55,8 @@ setup(
         'test': [
             'lxml',
             'Pillow',
-            'plone.testing[z2]',
-        ],
-        # BBB - remove in version 5
-        'blobs': [],
-        'editor': [],
-        'marshaler': [],
-        'scales': [],
-        'supermodel': [],
+            'plone.testing',
+            'ZODB',
+        ]
     },
 )

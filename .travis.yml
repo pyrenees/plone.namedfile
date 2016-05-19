@@ -1,10 +1,11 @@
 language: python
-matrix:
-  include:
-    - python: "2.7"
-      env: PLONE=5.0
-install: make plone$PLONE
-script: ./bin/test
+python:
+- 3.5
+sudo: false
 cache:
   directories:
-  - $TRAVIS_BUILD_DIR/eggs
+  - eggs
+install:
+- python bootstrap-buildout.py
+- bin/buildout -N -t 3
+script: bin/test

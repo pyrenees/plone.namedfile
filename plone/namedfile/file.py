@@ -2,7 +2,7 @@
 # The implementations in this file are largely borrowed
 # from zope.app.file and z3c.blobfile
 # and are licensed under the ZPL.
-from cStringIO import StringIO
+from io import StringIO
 from persistent import Persistent
 from plone.namedfile.interfaces import INamedBlobFile
 from plone.namedfile.interfaces import INamedBlobImage
@@ -173,10 +173,10 @@ class NamedFile(Persistent):
     def _setData(self, data):
 
         # Handle case when data is a string
-        if isinstance(data, unicode):
+        if isinstance(data, str):
             data = data.encode('UTF-8')
 
-        if isinstance(data, str):
+        if isinstance(data, bytes):
             self._data, self._size = FileChunk(data), len(data)
             return
 
@@ -288,7 +288,7 @@ class NamedImage(NamedFile):
     data = property(NamedFile._getData, _setData)
 
 
-def getImageInfo(data):
+def getImageInfo(data):  # noqa
     data = str(data)
     size = len(data)
     height = -1

@@ -21,6 +21,5 @@
   <include file="handler.zcml" />
   <include file="marshaler.zcml" />
   <include file="scaling.zcml" />
-  <include file="editor.zcml" />
 
 </configure>

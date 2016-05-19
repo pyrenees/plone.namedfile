@@ -55,8 +55,8 @@ def set_headers(file, response, filename=None):
     response.setHeader('Content-Length', file.getSize())
 
     if filename is not None:
-        if not isinstance(filename, unicode):
-            filename = unicode(filename, 'utf-8', errors='ignore')
+        if not isinstance(filename, str):
+            filename = str.decode('utf-8', errors='ignore')
         filename = urllib.quote(filename.encode('utf8'))
         response.setHeader(
             'Content-Disposition',
@@ -69,9 +69,9 @@ def stream_data(file):
     """
 
     if IBlobby.providedBy(file) and filestream_iterator is not None:
-        # XXX: we may want to use this instead, which would raise an error
-        # in case of uncomitted changes
-        # filename = file._blob.committed()
+        # XXX: we may want to use this instead, which would raise  # noqa
+        # an error in case of uncomitted changes filename =
+        # file._blob.committed()
 
         filename = file._blob._p_blob_uncommitted or file._blob.committed()
         return filestream_iterator(filename, 'rb')
